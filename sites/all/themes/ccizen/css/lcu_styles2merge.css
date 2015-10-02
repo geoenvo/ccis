@@ -1,0 +1,93 @@
+﻿
+/******************
+* Node edit
+* Als Selector hab ich .node-form genommen, sonst muss jeweils fuer
+* .page-node-add + .page-node-edit definiert werden.
+* Font-size nochmal extra zusammengefasst, weil vielleicht zu klein/gross...
+*****************
+.node-form .fieldset-legend {
+  font-family: 'Pathway Gothic One', 'Open Sans Condensed', 'Arial Narrow', sans-serif;
+}
+.node-form div.vertical-tabs, 
+#content .node-form input,
+#content .node-form select,
+#content .node-form textarea,
+#content .node-form .filter-wrapper {
+  font-size: 90%;
+}
+.node-form .form-item .description,
+.node-form .fieldset-description,
+.node-form .form-item .field-suffix {
+  font-size: 70%;
+}
+.node-form  {
+  background-color: #E6E6E6;
+  margin: 0;
+  padding: 5px 20px 20px 20px;
+  border: 5px solid #B3B3B3;
+  border-radius: 5px 5px 5px 5px;
+}
+.node-form .horizontal-tabs ul.horizontal-tabs-list {
+  border-color: #CCCCCC;
+  border-bottom: 3px solid #FFFFFF;
+  background-color: #E6E6E6;
+}
+.node-form div.vertical-tabs {
+  background-color: #E6E6E6;
+}
+.node-form .form-item {
+  margin: 0.5em 0;
+}
+.node-form .container-inline-date .date-padding {
+  padding: 0 10px;
+}
+#content .node-form input,
+#content .node-form select,
+#content .node-form textarea {
+  border: none;
+  background-color: #FFFFFF;
+}
+#content .node-form .form-submit {
+  background-color: #2C4563;
+  color: #C7B299;
+  font-size: 1.1em;
+  margin: 0 3px;
+}
+*/
+
+/***************
+* ClimateChange 
+**************
+.node-article-climatechange.view-mode-teaser.ds-2col > .group-left {
+  width: 30%;
+}
+.node-article-climatechange.view-mode-teaser.ds-2col > .group-right {
+  width: 70%;
+}
+*/
+
+/* styles.css Zeile 958ff  +++ events teaser +++ 
+.events .views-row,
+.news .views-row {
+  border-bottom: 1px dotted #B3B3B3;
+  clear: left;
+  margin-bottom: 10px;
+  padding: 10px 0;
+}
+*/
+
+/* language switcher styles.css Zeile 766ff 
+* der element.style ist auf 140px kann das hier auch so breit?
+* dann passt es... 
+
+#edit-lang-dropdown-select_msdd {
+  width: 140px !important; 
+  }
+*/
+
+/* user-login no description 
+#user-login .form-item-name .description,
+#user-login .form-item-pass .description {
+  display: none;
+}
+*/

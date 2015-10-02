@@ -1,0 +1,10 @@
+name = CCIS
+core = 7.x
+package = CCIS
+dependencies[] = mongodb
+dependencies[] = openlayers
+dependencies[] = views
+dependencies[] = datatables
+dependencies[] = entity
+dependencies[] = date_popup
+dependencies[] = plupload

@@ -1,0 +1,366 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the standard installation profile.
+ */
+
+/**
+ * Implements hook_install_tasks_alter().
+ */
+function ccis_distro_install_tasks_alter(&$tasks, $install_state) {
+  global $install_state;
+  if (!isset($tasks['file_system'])) {
+    $finish_task = $tasks['install_finished'];
+    unset($tasks['install_finished']);
+    module_load_include('inc', 'system', 'system.admin');
+    $tasks['file_system'] = array(
+      'display_name' => st('File system'),
+      'type' => 'form',
+      'function' => 'ccis_distro_install_file_system',
+    );
+    $tasks = array_merge($tasks, array('install_finished' => $finish_task));
+  }
+}
+
+
+/**
+ * Form for the - file_system - install task.
+ */
+function ccis_distro_install_file_system($form, &$form_state, $install_state) {
+  global $install_state;
+  drupal_set_title(t('File system'), PASS_THROUGH);
+  $page = isset($install_state['parameters']['filesystem_page']) ? $install_state['parameters']['filesystem_page'] : 1;
+  $form = system_file_system_settings();
+  if ($page == 1) {
+    $form['file_private_path']['#default_value'] = $form['file_public_path']['#default_value'] . '/private';
+    unset($form['file_default_scheme']);
+  }
+  else{
+    unset($form['file_private_path']);
+    unset($form['file_public_path']);
+    unset($form['file_temporary_path']);
+  }
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => st('Save and continue'),
+      '#weight' => 15,
+  );
+  $form['#submit'][] = 'ccis_distro_install_file_system_submit';
+  return $form;
+}
+
+/**
+ * Submit handler for ccis_distro_install_file_system().
+ */
+function ccis_distro_install_file_system_submit(&$form, &$form_state) {
+  global $install_state;
+  $page = isset($install_state['parameters']['filesystem_page']) ? $install_state['parameters']['filesystem_page'] : 1;
+
+  if ($page == 1) {
+    $install_state['parameters']['filesystem_page'] = 2;
+    $install_state['parameters_changed'] = TRUE;
+    $install_state['task_not_complete'] = TRUE;
+  }
+}
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions to set up the site for this profile.
+ *
+ * @see system_install()
+ */
+function ccis_distro_install() {
+  $full_html_format = array(
+    'format' => 'full_html',
+    'name' => 'Full HTML',
+    'weight' => 1,
+    'filters' => array(
+      // URL filter.
+      'filter_url' => array(
+        'weight' => 0,
+        'status' => 1,
+      ),
+      // Line break filter.
+      'filter_autop' => array(
+        'weight' => 1,
+        'status' => 1,
+      ),
+      // HTML corrector filter.
+      'filter_htmlcorrector' => array(
+        'weight' => 10,
+        'status' => 1,
+      ),
+    ),
+  );
+  $full_html_format = (object) $full_html_format;
+  filter_format_save($full_html_format);
+
+  // Enable some standard blocks.
+  variable_set('theme_default', 'ccizen');
+  theme_disable(array('bartik'));
+  $default_theme = variable_get('theme_default', 'ccizen');
+  theme_enable(array($default_theme));
+  $admin_theme = 'seven';
+  $blocks = array(
+    array(
+      'module' => 'system',
+      'delta' => 'main',
+      'theme' => $default_theme,
+      'status' => 1,
+      'weight' => 0,
+      'region' => 'content',
+      'pages' => '',
+      'cache' => -1,
+    ),
+    array(
+      'module' => 'system',
+      'delta' => 'help',
+      'theme' => $default_theme,
+      'status' => 1,
+      'weight' => 0,
+      'region' => 'help',
+      'pages' => '',
+      'cache' => -1,
+    ),
+    array(
+      'module' => 'system',
+      'delta' => 'main',
+      'theme' => $admin_theme,
+      'status' => 1,
+      'weight' => 0,
+      'region' => 'content',
+      'pages' => '',
+      'cache' => -1,
+    ),
+    array(
+      'module' => 'system',
+      'delta' => 'help',
+      'theme' => $admin_theme,
+      'status' => 1,
+      'weight' => 0,
+      'region' => 'help',
+      'pages' => '',
+      'cache' => -1,
+    ),
+  );
+  $query = db_insert('block')->fields(array('module', 'delta', 'theme', 'status', 'weight', 'region', 'pages', 'cache'));
+  foreach ($blocks as $block) {
+    $query->values($block);
+  }
+  $query->execute();
+
+  // Insert default pre-defined node types into the database. For a complete
+  // list of available node type attributes, refer to the node type API
+  // documentation at: http://api.drupal.org/api/HEAD/function/hook_node_info.
+  $types = array(
+    array(
+      'type' => 'article',
+      'name' => st('Article'),
+      'base' => 'node_content',
+      'description' => st('Use <em>articles</em> for time-sensitive content like news, press releases or blog posts.'),
+      'custom' => 1,
+      'modified' => 1,
+      'locked' => 0,
+    ),
+  );
+
+  foreach ($types as $type) {
+    $type = node_type_set_defaults($type);
+    node_type_save($type);
+    node_add_body_field($type);
+  }
+
+  // Insert default pre-defined RDF mapping into the database.
+  $rdf_mappings = array(
+    array(
+      'type' => 'node',
+      'bundle' => 'article',
+      'mapping' => array(
+        'field_image' => array(
+          'predicates' => array('og:image', 'rdfs:seeAlso'),
+          'type' => 'rel',
+        ),
+        'field_tags' => array(
+          'predicates' => array('dc:subject'),
+          'type' => 'rel',
+        ),
+      ),
+    ),
+  );
+  foreach ($rdf_mappings as $rdf_mapping) {
+    rdf_mapping_save($rdf_mapping);
+  }
+
+  // Enable user picture support and set the default to a square thumbnail option.
+  variable_set('user_picture_dimensions', '1024x1024');
+  variable_set('user_picture_file_size', '800');
+  variable_set('user_picture_style', 'thumbnail');
+
+  // Allow visitor account creation with administrative approval.
+  variable_set('user_register', USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL);
+
+  // Create an image field named "Image", enabled for the 'article' content type.
+  // Many of the following values will be defaulted, they're included here as an illustrative examples.
+  // See http://api.drupal.org/api/function/field_create_field/7
+
+  $field = array(
+    'field_name' => 'field_image',
+    'type' => 'image',
+    'cardinality' => 1,
+    'locked' => FALSE,
+    'indexes' => array('fid' => array('fid')),
+    'settings' => array(
+      'uri_scheme' => 'public',
+      'default_image' => FALSE,
+    ),
+    'storage' => array(
+      'type' => 'field_sql_storage',
+      'settings' => array(),
+    ),
+  );
+  field_create_field($field);
+
+
+  // Many of the following values will be defaulted, they're included here as an illustrative examples.
+  // See http://api.drupal.org/api/function/field_create_instance/7
+  $instance = array(
+    'field_name' => 'field_image',
+    'entity_type' => 'node',
+    'label' => 'Image',
+    'bundle' => 'article',
+    'description' => st('Upload an image to go with this article.'),
+    'required' => FALSE,
+
+    'settings' => array(
+      'file_directory' => 'field/image',
+      'file_extensions' => 'png gif jpg jpeg',
+      'max_filesize' => '',
+      'max_resolution' => '',
+      'min_resolution' => '',
+      'alt_field' => TRUE,
+      'title_field' => '',
+    ),
+
+    'widget' => array(
+      'type' => 'image_image',
+      'settings' => array(
+        'progress_indicator' => 'throbber',
+        'preview_image_style' => 'thumbnail',
+      ),
+      'weight' => -1,
+    ),
+
+    'display' => array(
+      'default' => array(
+        'label' => 'hidden',
+        'type' => 'image',
+        'settings' => array('image_style' => 'large', 'image_link' => ''),
+        'weight' => -1,
+      ),
+      'teaser' => array(
+        'label' => 'hidden',
+        'type' => 'image',
+        'settings' => array('image_style' => 'medium', 'image_link' => 'content'),
+        'weight' => -1,
+      ),
+    ),
+  );
+  field_create_instance($instance);
+
+  // Create a default role for site administrators, with all available permissions assigned.
+  $admin_role = new stdClass();
+  $admin_role->name = 'administrator';
+  $admin_role->weight = 2;
+  user_role_save($admin_role);
+  user_role_grant_permissions($admin_role->rid, array_keys(module_invoke_all('permission')));
+  // Set this as the administrator role.
+  variable_set('user_admin_role', $admin_role->rid);
+
+//   // Assign user 1 the "administrator" role.
+  db_insert('users_roles')
+    ->fields(array('uid' => 1, 'rid' => $admin_role->rid))
+    ->execute();
+
+  // Enable the admin theme.
+  db_update('system')
+    ->fields(array('status' => 1))
+    ->condition('type', 'theme')
+    ->condition('name', 'seven')
+    ->execute();
+  variable_set('admin_theme', 'seven');
+
+  $features = array(
+    // Title is overriden by block provider.
+    'ccis_multilanguage' => array('fe_block_settings'),
+    'ccis_slideshow' => array('fe_block_settings'),
+    'ccis_theme' => array('fe_block_settings'),
+    'ccis_feedback' => array('fe_block_settings'),
+    // Entity referece override.
+    'ccis_ct_weather_station' => array('field_base'),
+  );
+  features_revert($features);
+
+  _ccis_distro_create_bean();
+}
+
+function _ccis_distro_create_bean() {
+  $file_data = file_get_contents(dirname(__FILE__) . '/img/image_dashboard.png');
+  $file = file_save_data($file_data, 'public://image_dashboard.png');
+  $bean = bean_create(array('type' => 'image_teaser'));
+
+  $bean->label = 'Image teaser: Dashboard';
+  $bean->title = '';
+  $bean->delta = 'image-teaser-dashboard';
+  $bean->field_title_visible = array(
+    'und' => array(array(
+      'value' => 'Check out the dashboard',
+      'format' => 'plain_text',
+    )),
+  );
+  $bean->field_internal_link_url = array(
+    'und' => array(array(
+      'value' => 'dashboard',
+      'format' => 'plain_text',
+    )),
+  );
+  $bean->field_teaser_image = array(
+    'und' => array((array) $file),
+  );
+  try{
+    $bean->save();
+  }
+  catch (Exception $e) {
+    watchdog_exception('ccis_distro', $e);
+  }
+
+  $file_data = file_get_contents(dirname(__FILE__) . '/img/image_map.png');
+  $file = file_save_data($file_data);
+  $bean = bean_create(array('type' => 'image_teaser'));
+
+  $bean->label = 'Image teaser: Map';
+  $bean->title = '';
+  $bean->delta = 'image-teaser-map';
+  $bean->field_title_visible = array(
+    'und' => array(array(
+      'value' => 'Explore our interactive map',
+      'format' => 'plain_text',
+    )),
+  );
+  $bean->field_internal_link_url = array(
+    'und' => array(array(
+      'value' => 'map',
+      'format' => 'plain_text',
+    )),
+  );
+  $bean->field_teaser_image = array(
+    'und' => array((array) $file),
+  );
+  try{
+    $bean->save();
+  }
+  catch (Exception $e) {
+    watchdog_exception('ccis_distro', $e);
+  }
+}

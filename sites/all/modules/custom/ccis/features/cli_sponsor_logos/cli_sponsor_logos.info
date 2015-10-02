@@ -1,0 +1,16 @@
+name = Cli Sponsor Logos
+description = sample content for stakeholder logos
+core = 7.x
+package = Climability Content
+version = 7.x-1.0-beta3
+project = cli_sponsor_logos
+dependencies[] = ccis_sponsor_logos
+dependencies[] = ctools
+dependencies[] = features
+dependencies[] = node_export_features
+dependencies[] = node_export_features
+dependencies[] = strongarm
+features[ctools][] = strongarm:strongarm:1
+features[features_api][] = api:2
+features[node_export_features][] = ad747f09-c0f6-4f5e-bed5-e4b6c2ea00ae
+project path = sites/all/modules/custom/ccis/features

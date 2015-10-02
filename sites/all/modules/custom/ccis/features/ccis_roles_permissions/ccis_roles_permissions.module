@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the CCIS roles + permissions feature.
+ */
+
+include_once 'ccis_roles_permissions.features.inc';

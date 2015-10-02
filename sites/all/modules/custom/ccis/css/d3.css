@@ -1,0 +1,194 @@
+
+/* Legend Accordion */
+#ccis-weather-d3-block-1 .ui-accordion-header, #ccis-weather-d3-block-2 .ui-accordion-header { 
+	cursor: pointer; 
+	position: relative; 
+	margin-top: 1px; 
+	zoom: 1; 
+	border: 0;
+	border-bottom: 1px solid #e6e6e6;
+}
+#ccis-weather-d3-block-1 .ui-accordion-li-fix, #ccis-weather-d3-block-2 .ui-accordion-li-fix{ 
+	display: inline;
+}
+#ccis-weather-d3-block-1 .ui-accordion-header-active, #ccis-weather-d3-block-2 .ui-accordion-header-active { 
+	border-bottom: 0;
+}
+#ccis-weather-d3-block-1 .ui-accordion-header a, #ccis-weather-d3-block-2 .ui-accordion-header a  { 
+	display: block; 
+	font-size: 1em; 
+	padding: 3px 3px 3px 30px;
+	background-color: #b3b3b3;
+}
+#ccis-weather-d3-block-1 .ui-accordion-header .ui-icon, #ccis-weather-d3-block-2 .ui-accordion-header .ui-icon { 
+	position: absolute; 
+	left: .5em; 
+	top: 50%; 
+	margin-top: -8px;
+}
+#ccis-weather-d3-block-1 .ui-accordion-content, #ccis-weather-d3-block-2 .ui-accordion-content { 
+	border-top: 0; 
+border-bottom: 1px solid #e6e6e6;
+	margin-top: -2px; 
+	margin-bottom: 0px;
+	position: relative; 
+	overflow: auto; 
+	display: none; 
+	zoom: 1;
+}
+#ccis-weather-d3-block-1 .ui-accordion-content-active, #ccis-weather-d3-block-2 .ui-accordion-content-active { 
+	display: block;
+	background: #b3b3b3;
+}
+.d3_legendClass>div{
+	background: #b3b3b3;
+}
+
+/* Div of graph */
+.d3_GraphDivClass {
+	position: relative;
+	float: left;
+ 	background-color: #ffffff;
+}
+
+/* The SVG */
+.d3_svgElement {
+	background-color: #ffffff;
+}
+
+/* Grid */
+.d3_yGrid line {
+	stroke: #e6e6e6;
+}
+
+/* Legend Div */
+.d3_legendClass {
+	position: relative;
+	overflow-x: hidden;
+	overflow-y: scroll;
+	float: right;
+	background-color: #b3b3b3;	
+	font-family: 'Pathway Gothic One', 'Open Sans Condensed','Arial Narrow', sans-serif;
+	font-size: 15px;
+}
+
+/* Keys in Legend  */
+.d3_keys {
+	margin-left: 10px;
+}
+
+/* Checkboxes in Legend */
+.d3_keysTick {
+	clear: both; 
+	float: left;
+}
+.d3_keysSubTick {
+	margin: 0px 0px 0px 20px;
+}
+
+/* Box for Text and Icon Div in Legend (Hover) */
+.d3_keysBoxText {
+	float:left;
+}
+	
+/* Icons in Legend */
+.d3_keysIcon {
+	float: left;
+	margin-left: 5px;
+	width: auto;
+}
+
+/* Text in Legend */
+.d3_keysText {
+	float: left;
+	width: auto;
+	margin-left: 5px;
+	font-size: 14px;
+}
+
+/* Vertical line for the tooltip in diagram*/
+.d3_hoverLineClass {
+	stroke: black;
+}
+
+/* Tooltip in diagram */
+.d3_tooltipClass {		
+	position: absolute;
+	width: 120px;
+	height: auto;
+	border-radius: 8px 8px 8px 8px;	
+	background-color: white;
+	-webkit-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+	-moz-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+	box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);	
+	font-family: 'Pathway Gothic One', 'Open Sans Condensed','Arial Narrow', sans-serif;	
+	font-size: 14px;
+}
+
+.printSelectWrapperClass {
+	position: relative;
+	float: right;
+	background-color: #b3b3b3;
+	border-top: 1px solid black;
+	border-bottom: 1px solid #b3b3b3;
+ 	padding-bottom: 3px;
+}
+
+.d3_SelectDiagramsTextClass {
+	display: inline-block;
+	right: 28px;
+	font-size:12px;
+	margin-left: 30px;
+	margin-top: 2px;
+	margin-bottom: 2px;
+	padding: 1px;
+	border: 1px solid #b3b3b3;
+}
+.d3_tooManySelectionsTextClass {
+	background-color: #fcce00;
+	border: 1px solid #e6e6e6;
+}
+
+.d3_SelectTrendlineClass {
+	display: inline-block;
+	font-size: 14px;
+	margin-left: 10px;
+}
+
+.d3_checkboxTrendlineClass {
+	margin-right: 5px;
+}
+
+.d3_printPreviewClass {
+	width: 50px;
+	float: right;
+}
+
+/* PRINT WINDOW */
+@font-face {
+  font-family: 'Pathway Gothic One Print';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Pathway Gothic One'), local('PathwayGothicOne-Regular'), url(http://themes.googleusercontent.com/static/fonts/pathwaygothicone/v1/Lqv9ztoTUV8Q0FmQZzPqaBfSZ9PF2sGs8WIylam6T2Y.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Open Sans Condensed Print';
+  font-style: normal;
+  font-weight: 300;
+  src: local('Open Sans Cond Light'), local('OpenSans-CondensedLight'), url(http://themes.googleusercontent.com/static/fonts/opensanscondensed/v6/gk5FxslNkTTHtojXrkp-xF1YPouZEKgzpqZW9wN-3Ek.woff) format('woff');
+}
+
+.d3_printTitle {
+	font-family: 'Pathway Gothic One Print', 'Arial Narrow', sans-serif;
+	font-size: 20px;
+}
+
+.d3_printDiagDiv {
+	font-family: 'OpenSans Condensed Print', 'Arial Narrow', sans-serif;
+}
+
+.d3_printKeys {
+	font-family: 'Pathway Gothic One Print', 'Arial Narrow', sans-serif;
+	font-size:16px;
+}

@@ -1,0 +1,1231 @@
+<?php
+
+/**
+ * Implement hook_menu().
+ */
+function ccis_menu() {
+  $path = 'admin/ccis';
+  $items[$path] = array(
+    'title' => 'CCIS',
+    'description' => 'CCIS related settings',
+    'page callback' => 'ccis_admin_overview',
+    'access arguments' => array('access_ccis_admin_overview'),
+    'position' => 'left',
+  );
+  $items[$path . '/csv-import'] = array(
+    'title' => 'Climate data import',
+    'access arguments' => array('csv_import'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ccis_import_files_form'),
+    'file' => 'ccis.import.inc',
+  );
+  $items[$path . '/xml-import'] = array(
+    'title' => 'Climate station import',
+    'access arguments' => array('xml_import'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ccis_xml_import_files_form'),
+    'file' => 'ccis.import.inc',
+  );
+  $items[$path . '/search'] = array(
+    'title' => 'Search',
+    'access arguments' => array('access_ccis_search_settings'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ccis_search_settings'),
+    'file' => 'ccis.admin.inc',
+  );
+  $items[$path . '/permissions'] = array(
+    'title' => 'Climate data permissions',
+    'access arguments' => array('access_weather_data_perms'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ccis_weather_data_permissions'),
+    'file' => 'ccis.admin.inc',
+  );
+  $items['ccis/dataquery/%'] = array(
+    'title' => 'Data query',
+    'access callback' => TRUE,
+    'page callback' => 'ccis_dataquery_page',
+    'page arguments' => array(2),
+    'type' => MENU_CALLBACK,
+  );
+  $items['ccis/autocomplete/%'] = array(
+    'title' => 'Autocomplete',
+    'access callback' => TRUE,
+    'page callback' => 'ccis_autocomplete_response',
+    'page arguments' => array(2),
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Implement hook_permission().
+ */
+function ccis_permission() {
+  $perms['csv_import'] = array(
+    'title' => t('CSV import'),
+    'description' => t('Allows a user to upload and import the csv files.')
+  );
+  $perms['xml_import'] = array(
+    'title' => t('XML import'),
+    'description' => t('Allows a user to upload and import the xml files.')
+  );
+  $perms['access_ccis_admin_overview'] = array(
+    'title' => t('Access CCIS admin overview'),
+  );
+  $perms['access_ccis_search_settings'] = array(
+    'title' => t('Access CCIS search settings'),
+  );
+  $perms['access_weather_data_perms'] = array(
+    'title' => t('Access CCIS climate data permission settings'),
+  );
+  $perms['access_ccis_all_weather_data'] = array(
+    'title' => t('Access to all climate data'),
+  );
+  $perms['access_ccis_download_link'] = array(
+    'title' => t('Access csv download link'),
+    'description' => t('Allows a user to download the displayed weather data as csv file.'),
+  );
+  $fields = _ccis_get_weather_data_labels(FALSE);
+  $fields_per_range = variable_get('ccis_weather_data_perms_range', array());
+  $fields_per_range = array_filter($fields_per_range);
+  $ranges = _ccis_get_range_label(TRUE);
+  foreach ($fields as $fieldname => $fieldlabel) {
+    if (!empty($fields_per_range[$fieldname])) {
+      foreach ($ranges as $range => $label) {
+        $perm_key = "access_ccis_{$fieldname}_{$range}";
+        $perms[$perm_key] = array(
+          'title' => t('View data of !field in %range', array(
+            '!field' => $fieldlabel,
+            '%range' => $label,
+          )),
+        );
+      }
+    }
+    else{
+      $perms["access_ccis_{$fieldname}"] = array(
+        'title' => t('View data of !field', array(
+          '!field' => $fieldlabel,
+        )),
+      );
+    }
+  }
+  return $perms;
+}
+
+/**
+ * Implement hook_help().
+ */
+function ccis_help($path, $arg) {
+  switch ($path) {
+    case 'admin/ccis/search':
+      return t('The selected fields of the climate station are searchable in the filter form of the climate station dashboard.');
+      break;
+    case 'admin/ccis/permissions':
+      return t('For all selected fields of the climate data you get new view permissions per date range (daily, monthly) etc. .');
+
+  }
+}
+
+/**
+ * Implement hook_block_info().
+ */
+function ccis_block_info() {
+  $blocks['filter'] = array(
+    'info' => 'Station Filter',
+  );
+  $blocks['stationinfo'] = array(
+    'info' => 'Station Info',
+  );
+  $blocks['stationinfo_2'] = array(
+    'info' => 'Station Info 2',
+  );
+  $blocks['stationmap'] = array(
+    'info' => 'Station map',
+  );
+  $blocks['d3'] = array(
+    'info' => 'D3 Graph',
+  );
+  $blocks['d3_2'] = array(
+    'info' => 'D3 Graph 2',
+  );
+  $blocks['datatables'] = array(
+    'info' => 'Datatable',
+  );
+  return $blocks;
+}
+
+/**
+ * Implement hook_block_view().
+ */
+function ccis_block_view($delta) {
+  $block = array();
+  $params = drupal_get_query_parameters();
+  $node = _ccis_get_station_node($params);
+  switch ($delta) {
+    case 'filter':
+      $block['subject'] = '<none>';
+      $block['content'] =  _ccis_block_filter($node);
+      break;
+    case 'd3':
+      $block['subject'] = '<none>';
+      $block['content'] = '<div id="ccis-weather-d3-block-1"></div>';
+      break;
+    case 'd3_2':
+      $block['subject'] = '<none>';
+      $block['content'] = '<div id="ccis-weather-d3-block-2"></div>';
+      break;
+    case 'datatables':
+      $block['subject'] = '<none>';
+      $block['content'] = '<div id="ccis-weather-datatable-block"></div>';
+      break;
+    case 'stationinfo':
+      $block['subject'] = '<none>';
+      $block['content'] = _ccis_block_stationinfo($node);
+      break;
+    case 'stationinfo_2':
+      $block['subject'] = '<none>';
+      $block['content'] = '<div id="ccis-station-info-block-2" data-hide-portlet=1></div>';
+      break;
+    case 'stationmap':
+      $block['subject'] = '<none>';
+      $block['content'] = _ccis_block_stationmap($node);
+      break;
+  }
+  return $block;
+}
+
+/**
+ * Implements hook_page_alter();
+ */
+function ccis_page_alter(&$page) {
+  if (current_path() == 'dashboard') {
+    $path = libraries_get_path('datatables');
+    drupal_add_js($path . '/media/js/jquery.dataTables.js');
+    drupal_add_js($path . '/extras/ColVis/media/js/ColVis.min.js');
+    drupal_add_js($path . '/extras/ColReorder/media/js/ColReorder.min.js');
+
+    drupal_add_css($path . '/media/css/demo_table.css');
+    drupal_add_css($path . '/extras/ColReorder/media/css/ColReorder.css');
+    drupal_add_css($path . '/extras/ColVis/media/css/ColVis.css');
+
+    $params = drupal_get_query_parameters();
+    $node = _ccis_get_station_node($params);
+    $list = 'unknown';
+    if (!empty($node)) {
+      $range = _ccis_get_date_range($params);
+      $list = _ccis_get_listname($node, $range);
+    }
+    drupal_add_js(ccis_get_dashboard_settings($list, $params), 'setting');
+
+    $path = drupal_get_path('module', 'ccis');
+    drupal_add_js($path . '/js/jquery.pager.js', array('weight' => 3));
+    drupal_add_js($path . '/js/base.ccis.js', array('weight' => 4));
+    drupal_add_js($path . '/js/datatables.ccis.js', array('weight' => 6));
+
+
+    $d3 = libraries_get_path('d3');
+    drupal_add_js($d3. '/d3.v3.min.js', array('group' => JS_LIBRARY));
+    drupal_add_js($path . '/js/jquery.slimscroll.js', array('group' => JS_LIBRARY));
+    drupal_add_library('system', 'ui.accordion');
+    drupal_add_js($path . '/js/d3.ccis.js', array('weight' => 5));
+    drupal_add_css($path . '/css/d3.css');
+
+  }
+}
+
+/**
+ * Implement hook_date_format_types().
+ */
+function ccis_date_format_types() {
+  return array(
+    'datatable' => t('Datatable'),
+  );
+}
+
+/**
+ * Implement hook_date_formats().
+ */
+function ccis_date_formats() {
+  return array(
+    array(
+      'type' => 'datatable',
+      'format' => 'd.m.Y',
+      'locales' => array('de-de'),
+    ),
+    array(
+      'type' => 'datatable',
+      'format' => 'Y-m-d',
+      'locales' => array(),
+    ),
+  );
+}
+
+/**
+ * Implement hook_openlayers_map_alter().
+ */
+function ccis_openlayers_map_alter(&$map = array()) {
+  $path = drupal_get_path('module', 'ccis');
+  drupal_add_js($path . '/libs/OpenLayers.Popup.Popover/Popover.js');
+}
+
+/**
+ * Implements hook_features_pipe_COMPONENT_alter().
+ */
+function ccis_features_pipe_variable_alter(&$pipe, $data, $export) {
+  if (!empty($data)) {
+    foreach ($data as $variable) {
+      if (strpos($variable, 'ccis_') === 0) {
+        $pipe['dependencies'][] = 'ccis';
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_features_pipe_COMPONENT_alter().
+ */
+function ccis_features_pipe_user_permission_alter(&$pipe, $data, $export) {
+  if (!empty($data)) {
+    foreach ($data as $permission) {
+      if (strpos($permission, 'access_ccis_field_') === 0) {
+        $pipe['variable']['ccis_weather_data_perms_range'] = 'ccis_weather_data_perms_range';
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_FORM_ID_form_alter().
+ */
+function ccis_form_field_ui_field_edit_form_alter(&$form, $form_state) {
+  $form['instance']['settings']['graph_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Graph type'),
+    '#description' => t('Select the type of the graph'),
+    '#options' => array(t('Line chart'),t('Bar chart')),
+	'#default_value' => isset($form['#instance']['settings']['graph_type']) ? $form['#instance']['settings']['graph_type'] : 0,
+  );
+  $results = db_query("SELECT title FROM {node} WHERE type = 'climate_group'")->fetchAll();
+  $groups = array();
+  if (! empty($results )) {
+    foreach ($results as $result ) {
+      $groups[$result->title] = $result->title;
+    }
+  }
+    // Select list form for climate groups
+  $form['instance']['settings']['climate_group'] = array(
+    '#type' => 'select',
+    '#title' => t('Climate Group' ),
+    '#options' => $groups,
+    '#description' => t('Select an element of the content type "Climate group"'),
+    '#default_value' => isset($form['#instance']['settings']['climate_group']) ? $form['#instance']['settings']['climate_group'] : 0,
+    '#empty_value' => '',
+  );
+
+  // jQuery color picker form for graph color
+  $form['instance']['settings']['color'] = array(
+    '#type' => 'jquery_colorpicker',
+    '#title' => t('Chart color' ),
+    '#description' => t('Select the color of the chart'),
+    '#default_value' => isset($form['#instance']['settings']['color']) ? $form['#instance']['settings']['color'] : '000000',
+  );
+  $results = db_query("SELECT title FROM {node} WHERE type = 'climate_unit'")->fetchAll();
+  $units = array();
+  if (! empty($results )) {
+    foreach ( $results as $result ) {
+      $units[$result->title] = $result->title;
+    }
+  }
+    // Select list form for climate units
+  $form['instance']['settings']['climate_unit'] = array(
+    '#type' => 'select',
+    '#title' => t('Climate unit' ),
+    '#options' => $units,
+    '#description' => t('Select an element of the content type "Climate unit"'),
+    '#default_value' => isset($form['#instance']['settings']['climate_unit']) ? $form['#instance']['settings']['climate_unit'] : 0,
+    '#empty_value' => '',
+  );
+}
+
+/**
+ * Implements hook_node_export_node_import_alter().
+ *
+ * Resets the uid to 1.
+ */
+function ccis_node_export_node_import_alter(&$node, $original_node, $save) {
+  if ($node->uid == 0) {
+    $node->uid = 1;
+  }
+}
+
+/**
+ * Implements hook_node_export_alter().
+ *
+ * Most code is from node_export_file_field_export().
+ * We resets some node, file properties to NULL.
+ */
+function ccis_node_export_alter(&$nodes, $format_handler) {
+  foreach ($nodes as &$node) {
+    $node->data = $node->last_comment_uid = $node->created = $node->changed = NULL;
+    // get all fields from this node type
+    $fields = field_info_instances('node', $node->type);
+    foreach ($fields as $field_instance) {
+
+      // load field infos to check the type
+      $field = &$node->{$field_instance['field_name']};
+      $info = field_info_field($field_instance['field_name']);
+
+      $supported_fields = array_map('trim', explode(',', variable_get('node_export_file_supported_fields', 'file, image')));
+
+      // check if this field should implement file import/export system
+      if (in_array($info['type'], $supported_fields)) {
+
+        // we need to loop into each language because i18n translation can build
+        // fields with different language than the node one.
+        foreach ($field as $language => $files) {
+
+          if (is_array($files)) {
+            foreach ($files as $i => $file) {
+
+              // convert file to array to stay into the default node_export_file format
+              $file = (object) $file;
+
+              // Check the file
+              if (!isset($file->uri) || !is_file($file->uri)) {
+                continue;
+              }
+              if (empty($file->alt)) {
+                $field[$language][$i]['alt'] = NULL;
+              }
+              if (empty($file->title)) {
+                $field[$language][$i]['title'] = NULL;
+              }
+              $field[$language][$i]['timestamp'] = NULL;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Page callback for all ccis admin pages.
+ */
+function ccis_admin_overview() {
+  $system = drupal_get_path('module', 'system');
+  include_once $system . '/system.admin.inc';
+  return system_admin_menu_block_page();
+}
+
+/**
+ * Return the json or csv output of a list.
+ * @param string $list
+ *   The list name like bremen_daily, bremen_monthly etc.
+ * @param string $format
+ *   The output format json or csv. Default json.
+ */
+function ccis_dataquery_page($list, $source = 'unknown', $format = 'json') {
+  $supported_formats = array('json', 'csv');
+  $supported_sources = array('download', 'data');
+  $error = FALSE;
+  if (!in_array($format, $supported_formats)) {
+    watchdog('ccis', 'Overgiven format: @format is not supported', array('@format' => $format), WATCHDOG_ERROR);
+    $error = TRUE;
+  }
+  if (!in_array($source, $supported_sources)) {
+    watchdog('ccis', 'Overgiven source: @source is not supported', array('@source' => $source), WATCHDOG_ERROR);
+    $error = TRUE;
+  }
+  if ($error) {
+    drupal_json_output(array());
+    drupal_exit();
+  }
+  if ($source == 'download' && !user_access('access_ccis_download_link')) {
+    drupal_access_denied();
+    return '';
+  }
+  $params = drupal_get_query_parameters();
+  try{
+    $col = mongodb_collection($list);
+    $query = array();
+    if (!empty($params['start']) && !empty($params['end'])) {
+      $query = array('date' => array('$gte' => $params['start'], '$lt' => $params['end']));
+    }
+    $limit = variable_get('ccis_default_displayed_data_limit', 180);
+    $labels = _ccis_get_weather_data_labels($list);
+
+    if ($source == 'download' && !empty($params['filter_fields'])) {
+      $filter_fields = array_fill_keys(explode(',', $params['filter_fields']), TRUE);
+      $labels = array_intersect_key($labels, $filter_fields);
+    }
+    $fields = array();
+    foreach ($labels as $key => $label) {
+      $_key = str_replace('field_', '', $key);
+      $fields[$_key] = TRUE;
+    }
+    $output = $header = array();
+    if (!empty($fields)) {
+      $docs = $col->find($query, $fields)->limit($limit);
+      $row = 1;
+    }
+    if (!empty($fields) && $docs->hasNext()) {
+      foreach ($docs as $doc) {
+        unset($doc['_id']);
+        $header = array_keys($doc);
+        if (!empty($doc['date'])) {
+          $time = strtotime($doc['date']);
+          if ($params['range'] == 'yearly') {
+            $doc['shortdate'] = date('Y', $time);
+          }
+          elseif ($params['range'] == 'monthly') {
+            $doc['shortdate'] = date('m-Y', $time);
+          }
+          else{
+            $doc['shortdate'] = format_date($time, 'datatable');
+          }
+          if ($source == 'download') {
+            $doc['date'] = $doc['shortdate'];
+            unset($doc['shortdate']);
+          }
+        }
+        $output[] = $doc;
+      }
+      if ($format == 'json') {
+        echo drupal_json_output($output);
+      }
+      else{
+        $header = array_keys(reset($output));
+        $output = array_merge(array($header), $output);
+        drupal_add_http_header('Content-Type', 'text/csv; charset=utf-8');
+        drupal_add_http_header('Content-Disposition', 'attachment; filename=' . $list . '.csv');
+        drupal_add_http_header('Cache-Control', 'must-revalidate');
+        echo _ccis_outputCSV($output);
+      }
+    }
+    else{
+      echo drupal_json_output($output);
+    }
+  }
+  catch (Exception $e) {
+    watchdog_exception('ccis', $e);
+  }
+  drupal_exit();
+}
+
+
+/**
+ * Copy from http://www.php.net/manual/de/function.fputcsv.php#100033
+ */
+function _ccis_outputCSV($data) {
+
+  $outstream = fopen("php://output", 'w');
+
+  function __outputCSV(&$vals, $key, $filehandler) {
+    fputcsv($filehandler, $vals, ',', '"');
+  }
+  array_walk($data, '__outputCSV', $outstream);
+
+  fclose($outstream);
+}
+
+/**
+ * Block output for the filter.
+ */
+function _ccis_block_filter($node) {
+  $form = drupal_get_form('ccis_block_filter_form', $node);
+  return drupal_render($form);
+}
+
+/**
+ * Filter form.
+ */
+function ccis_block_filter_form($form, $form_state, $node = NULL) {
+  $form['messages'] = array(
+    '#prefix' => '<div id="ccis-filter-messages">',
+    '#suffix' => '</div>',
+  );
+  $input1 = '';
+  if (!empty($node->field_stationcode)) {
+    $input1 = $node->field_stationcode['und'][0]['safe_value'];
+  }
+  $form['station_input'] = array(
+    '#type' => 'fieldset',
+  );
+  $form['station_input']['headline'] = array(
+    '#markup' => '<h3 class="dashboard-title"><span>' . t('Stations') . '</span></h3>',
+  );
+  $form['station_input']['input1'] = array(
+    '#title' => t('Station 1'),
+    '#type' => 'textfield',
+    '#autocomplete_path' => 'ccis/autocomplete/station_search',
+    '#title_display' => 'invisible',
+    '#description' => t('Enter a station name or station code'),
+    '#default_value' => isset($node->title) ? "$node->title ($input1)" : '',
+    '#field_prefix' => 1,
+    '#attributes' => array('class' => array('form-autocomplete-mousedown')),
+  );
+  $form['station_input']['input2'] = array(
+    '#title' => t('Station 2'),
+    '#type' => 'textfield',
+    '#autocomplete_path' => 'ccis/autocomplete/station_search',
+    '#title_display' => 'invisible',
+    '#description' => t('Enter a station name or station code to compare.'),
+    '#field_prefix' => 2,
+    '#attributes' => array('class' => array('form-autocomplete-mousedown')),
+    '#states' => array(
+      'visible' => array(
+        array('#edit-input1' => array('filled' => TRUE)),
+      ),
+    ),
+  );
+  $form['filter'] = array(
+    '#type' => 'fieldset',
+  );
+  $form['filter']['headline'] = array(
+    '#markup' => '<h3 class="dashboard-title"><span>' . t('Filter') . '</span></h3>',
+  );
+  $form['filter']['searchterm'] = array(
+    '#title' => t('Search'),
+    '#type' => 'textfield',
+    '#description' => t('Enter metadata search term'),
+  );
+  $form['filter']['region'] = array(
+    '#title' => t('Region'),
+    '#type' => 'select',
+    '#options' => _ccis_get_station_regions(),
+    '#empty_value' => '',
+    '#empty_option' => t('Select a region'),
+  );
+  $form['filter']['start'] = array(
+    '#title' => t('From'),
+    '#type' => 'date_popup',
+    '#date_year_range' => '-100:0',
+    '#date_format' => variable_get('date_format_datatable', 'Y-m-d'),
+  );
+  $form['filter']['end'] = array(
+    '#title' => t('To'),
+    '#type' => 'date_popup',
+    '#date_year_range' => '-100:0',
+    '#date_format' => variable_get('date_format_datatable', 'Y-m-d'),
+  );
+  $form['actions'] = array('#type' => 'actions', '#weight' => 1);
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Search'),
+    '#ajax' => array('callback' => 'ccis_block_filter_form_ajax_submit'),
+    '#attributes' => array('class' => array('use-ajax-submit')),
+  );
+  $form['actions']['clear'] = array(
+    '#type' => 'button',
+    '#value' => t('Clear'),
+    '#attributes' => array('title' => t('Clears all values')),
+  );
+  $form['searchresult'] = array(
+    '#prefix' => '<div id="ccis-station-search-result">',
+    '#suffix' => '</div>',
+    '#weight' => 2,
+  );
+  return $form;
+}
+
+/**
+ * Submit handler for the form _ccis_block_filter_form().
+ */
+function ccis_block_filter_form_submit($form, &$form_state) {
+  form_state_values_clean($form_state);
+  $form_state['redirect'] = array(current_path(), array('query' => $form_state['values']));
+}
+
+/**
+ * Ajax submit handler for the form _ccis_block_filter_form().
+ */
+function ccis_block_filter_form_ajax_submit($form, &$form_state) {
+  form_state_values_clean($form_state);
+
+  $station_1 = _ccis_get_station_node($form_state['values'], 'input1');
+  $station_2 = _ccis_get_station_node($form_state['values'], 'input2');
+
+  $range = _ccis_get_date_range($form_state['values']);
+
+  $list1 = _ccis_get_listname($station_1, $range);
+  $list2 = _ccis_get_listname($station_2, $range);
+
+  $commands[] = ajax_command_data('body', 'dashboardrefresh', 1);
+
+  // Resets existing values.
+  $commands[] = ajax_command_settings(array('ccis' => array()), TRUE);
+  // The settings are static cached.
+  ccis_get_dashboard_settings($list1, $form_state['values']);
+  $settings = ccis_get_dashboard_settings($list2, $form_state['values'], 2);
+  $commands[] = ajax_command_settings($settings);
+
+  $commands[] = ajax_command_replace('#ccis-station-info-block-1', _ccis_block_stationinfo($station_1));
+  if (!empty($station_2)) {
+    $commands[] = ajax_command_replace('#ccis-station-info-block-2', _ccis_block_stationinfo($station_2, 2));
+  }
+  else{
+    // Reset the block with a empty div.
+    $commands[] = ajax_command_data('#ccis-station-info-block-2', 'hide-portlet', '1');
+  }
+  $commands[] = ajax_command_replace('#ccis-station-search-result', '<div id="ccis-station-search-result"></div>');
+  $search_result = '';
+  if (!empty($form_state['values'])) {
+    $search_result = ccis_search_terms_finder_list($form_state['values']);
+  }
+  $commands[] = ajax_command_replace('#ccis-station-search-result', '<div id="ccis-station-search-result">' . $search_result . '</div>');
+
+  $commands[] = ajax_command_replace('#ccis-station-map-block', _ccis_block_stationmap(array($station_1, $station_2)));
+
+  $commands[] = ajax_command_replace('#ccis-filter-messages', '<div id="ccis-filter-messages">' . theme('status_messages') . '</div>');
+
+  return array('#type' => 'ajax', '#commands' => $commands);
+}
+
+/**
+ * Builds an array with all nesessary data for D3/Datatable.
+ */
+function ccis_get_dashboard_settings($list = 'unknown', $values = array(), $id = 1) {
+  static $settings;
+  if ($list == 'unknown') {
+    return empty($settings) ? array('ccis' => array()) : $settings;
+  }
+  static $stations;
+  $node = _ccis_get_station_node($values, 'input' . $id);
+  $range = _ccis_get_date_range($values);
+  $values = array_merge($values, array('range' => $range));
+
+  $download = '';
+  if (user_access('access_ccis_download_link')) {
+    $url = url("ccis/dataquery/$list/download/csv", array('query' => $values));
+    $link = "<a data-origin-href='$url' href='$url' >" . t('Export data') . '</a>';
+    $download = '<div class="ccis-data-download">' . $link . '</div>';
+  }
+  $stations[] = array(
+    'path' => url("ccis/dataquery/$list/data", array('query' => $values)),
+    'name' => isset($node->title) ? check_plain($node->title) : '',
+    'data' => array(),
+    'selector' => 'ccis-weather-d3-block-' . $id,
+    'nr' => $id,
+    'download' => $download,
+  );
+  $legends = _ccis_get_weather_data_labels($list);
+  $settings['ccis']['info'] = array(
+    'legends' => $legends,
+    'range' => _ccis_get_range_label($range),
+    'd3' => ccis_get_d3_info($legends),
+  );
+  $settings['ccis']['stations'] = $stations;
+  return $settings;
+}
+
+/**
+ * Runs a query to get information about all climate parameters. Used in function ccis_get_dashboard_settings.
+ */
+function ccis_get_d3_info($legends) {
+  static $return = array();
+  if (empty($return)) {
+    $groups = $units = $units_data = $groups_data = array();
+    $field_infos = field_info_instances('node', 'weather_data');
+    $default = array('climate_group' => TRUE, 'climate_unit' => TRUE, 'color' => TRUE, 'graph_type' => TRUE);
+    foreach ($field_infos as $key => $info) {
+      if (!empty($legends[$key])) {
+        $parameters[$key] = array_intersect_key($info['settings'], $default);
+        if (!empty($parameters[$key])) {
+          $groups[$parameters[$key]['climate_group']] = $parameters[$key]['climate_group'];
+          $units[$parameters[$key]['climate_unit']] = $parameters[$key]['climate_unit'];
+        }
+      }
+    }
+    foreach ($units as $unit) {
+      $units_data[$unit] = _ccis_get_d3_info_helper('climate_unit', $unit);
+    }
+    foreach ($groups as $group) {
+      $groups_data[$group] = _ccis_get_d3_info_helper('climate_group', $group);
+    }
+    $return = array('parameter' => $parameters, 'units' => $units_data, 'groups' => $groups_data);
+  }
+  return $return;
+}
+
+function _ccis_get_d3_info_helper($bundle, $title) {
+  $data = array();
+  $query = new EntityFieldQuery();
+  $field_infos = field_info_instances('node', $bundle);
+  $entities = $query->entityCondition('entity_type', 'node' )
+  ->propertyCondition('type', $bundle)
+  ->propertyCondition('title', $title)
+  ->propertyCondition('status', 1)
+  ->range(0, 1 )->execute();
+  if (!empty($entities['node'])) {
+    $nids = array_keys($entities['node'] );
+    $node = node_load(reset($nids));
+    $node = entity_metadata_wrapper('node', $node);
+    foreach ($field_infos as $key => $info) {
+      $value = $node->{$key}->value();
+      if (is_array($value) && array_key_exists('uri', $value)) {
+        $value = file_create_url($value['uri']);
+      }
+      $data[$key] = check_plain($value);
+    }
+  }
+  return array_filter($data);
+}
+
+/**
+ * Loads a station node based on nid from the GET parameter from the big map
+ * or from a form values.
+ *
+ * @param array $values
+ */
+function _ccis_get_station_node($values = array(), $key = 'input1') {
+  static $nodes;
+  $nid = NULL;
+  if (isset($values['nid'])) {
+    $nid = $values['nid'];
+  }
+  elseif (isset($values[$key])) {
+    $pattern = "/(.+)\((\d+)\)/";
+    preg_match($pattern, $values[$key], $matches);
+    $code = isset($matches[2]) ? $matches[2] : NULL;
+    $query = new EntityFieldQuery();
+    $query->entityCondition('entity_type', 'node')
+      ->entityCondition('bundle', 'weather_station')
+      ->propertyCondition('status', 1)
+      ->fieldCondition('field_stationcode', 'value', $code, '=');
+    $result = $query->execute();
+    if (isset($result['node'])) {
+      $nids = array_keys($result['node']);
+      $nid = reset($nids);
+    }
+  }
+  if (!empty($nid)) {
+    return node_load($nid);
+  }
+  return NULL;
+}
+
+/**
+ * Calculates the range of two dates.
+ *
+ * @param array $values
+ *    An array with at least the values start/end date.
+ *
+ * @return string
+ *   The range yearly|monthly|daily|10_days.
+ */
+function _ccis_get_date_range($values) {
+  static $range;
+  if (empty($range)) {
+    $range = 'yearly';
+    if (empty($values['start']) || empty($values['end'])) {
+      $range = 'yearly';
+      return $range;
+    }
+    $date1 = $values['start'];
+    $date2 = $values['end'];
+
+    $diff = abs(strtotime($date2) - strtotime($date1));
+
+    $years = floor($diff / (365*60*60*24));
+    $months = floor(($diff - $years * 365*60*60*24) / (30*60*60*24));
+    $days = floor(($diff - $years * 365*60*60*24 - $months*30*60*60*24)/ (60*60*24));
+    if ($years < 15) {
+      $range = 'monthly';
+      if ($years < 5 && $years >= 1) {
+        $range = '10_days';
+      }
+      if ($years < 1) {
+        $range = 'daily';
+      }
+    }
+  }
+  return $range;
+}
+
+/**
+ * Builds the name of a mongodb collection.
+ *
+ * @param object $node
+ * @param string $range
+ *
+ * @return string
+ */
+function _ccis_get_listname($node, $range) {
+  $list = 'unknown';
+  if (!empty($node)) {
+    $items = field_get_items('node', $node, 'field_stationcode');
+    if (!empty($items)) {
+      $item = reset($items);
+      $list = $item['safe_value'];
+    }
+    $list = $list . '_' . $range;
+  }
+  return $list;
+}
+
+/**
+ * Block output for the Station info.
+ */
+function _ccis_block_stationinfo($node = NULL, $id = 1) {
+  $nid = empty($node) ? NULL : $node->nid;
+  $view = views_embed_view('station_info', 'embed_1', $nid);
+  $output = '<div data-hide-portlet=0 id="ccis-station-info-block-' . $id . '">';
+  $output .= $view;
+  $output .= '</div>';
+  return $output;
+}
+
+/**
+ * Block output for the Station map.
+ */
+function _ccis_block_stationmap($nodes = NULL) {
+  openlayers_include();
+  $nids = array();
+  if (!is_array($nodes)) {
+    $nodes = array($nodes);
+  }
+  $nodes = array_filter($nodes);
+  foreach ($nodes as $node) {
+    $nids[] = $node->nid;
+  }
+  $nids = empty($nids) ? NULL : implode(',', $nids);
+  $view = views_embed_view('station_map', 'embed_1', $nids);
+  $output = '<div class="ccis-station-map-block" id="ccis-station-map-block">';
+  $output .= $view;
+  $output .= '</div>';
+  return $output;
+}
+
+/**
+ * A wrapper function to use it as autocomplete in the form api.
+ *
+ * Autocomplete path: ccis/autocomplete/{type}
+ *
+ * @param string $type
+ *   A fixed value.
+ *
+ * @param string $string
+ *   The typed string in the form.
+ */
+function ccis_autocomplete_response($type, $string) {
+  $matches = array();
+  if ($type == 'station_search' && $string) {
+
+    $query = db_select('node', 'n');
+    $query->leftJoin('field_data_field_stationcode', 'f', 'n.nid = f.entity_id');
+    $query->leftJoin('field_data_field_wmocode', 'f2', 'n.nid = f2.entity_id');
+
+    $n_and = db_and()->condition('n.title', db_like($string) . '%', 'LIKE');
+    $f_and = db_and()->condition('f.field_stationcode_value', db_like($string) . '%', 'LIKE');
+    $f2_and = db_and()->condition('f2.field_wmocode_value', db_like($string) . '%', 'LIKE');
+
+    $query->fields('n', array('nid', 'title'))
+      ->fields('f', array('field_stationcode_value'))
+      ->condition('n.type', 'weather_station')
+      ->condition(db_or()->condition($n_and)->condition($f_and)->condition($f2_and))
+      ->addTag('node_access')
+      ->range(0, 10);
+    try{
+      $results = $query->execute();
+      foreach ($results as $result) {
+        // $key will be placed in the input field after the user choose a suggention.
+        $key = $result->title . ' (' . $result->field_stationcode_value . ')';
+        // $title will be shown to user underneath input field will he typing.
+        $title = check_plain($key);
+        $matches[$key] = $title;
+      }
+    }
+    catch (Exception $e) {
+      watchdog_exception('ccis', $e);
+    }
+  }
+  drupal_json_output($matches);
+}
+
+/**
+ * Returns the labels of all fields, with optional access checks.
+ *
+ * @param array $check
+ *   Set to FALSE when you do not want the field_access() check. Default TRUE.
+ *
+ * @return array
+ *   An array of field labels keyed by field names.
+ */
+function _ccis_get_weather_data_labels($list = NULL) {
+  $labels = &drupal_static(__FUNCTION__, array());
+  if (empty($labels)) {
+    $tmp = array();
+    $field_infos = field_info_instances('node', 'weather_data');
+    foreach ($field_infos as $field_name => $info) {
+      $desc = trim($info['description']);
+      if (!empty($desc)) {
+        $desc = ' title="' . check_plain($desc) . '"';
+      }
+      $label = '<span class="ccis-datatable-title" ' . $desc . '>';
+      $label .= check_plain($info['label']);
+      $label .= '</span>';
+      if (!empty($info['settings']['climate_unit'])) {
+        $query = new EntityFieldQuery();
+        $entities = $query->entityCondition('entity_type', 'node')
+          ->propertyCondition('type', 'climate_unit')
+          ->propertyCondition('title', $info['settings']['climate_unit'])
+          ->propertyCondition('status', 1)
+          ->range(0,1)
+          ->execute();
+        if (!empty($entities['node'])) {
+          $nids = array_keys($entities['node']);
+          $node = node_load(reset($nids));
+          if (!empty($node->field_label_tooltip['und'][0])) {
+            $label .= ' <span class="ccis-datatable-unit">' . $node->field_label_tooltip['und'][0]['safe_value'] . '</span>';
+          }
+        }
+      }
+      $tmp[$field_name] = array(
+        'label' => $label,
+        'weight' => $info['widget']['weight']
+      );
+      uasort($tmp, 'drupal_sort_weight');
+      foreach ($tmp as $key => $value) {
+        $labels[$key] = $value['label'];
+      }
+    }
+  }
+
+  if ($list && !user_access('access_ccis_all_weather_data')) {
+    $ranges = _ccis_get_range_label(TRUE);
+    $fields_per_range = variable_get('ccis_weather_data_perms_range', array());
+    $fields_per_range = array_filter($fields_per_range);
+    foreach ($labels as $fieldname => $label) {
+      if (!empty($fields_per_range[$fieldname])) {
+        foreach ($ranges as $range => $label) {
+          if (strpos($list, $range) !== FALSE) {
+            $perm_key = "access_ccis_{$fieldname}_{$range}";
+            if (!user_access($perm_key)) {
+              unset($labels[$fieldname]);
+            }
+          }
+        }
+      }
+      else {
+        if (!user_access("access_ccis_{$fieldname}")) {
+          unset($labels[$fieldname]);
+        }
+      }
+    }
+  }
+  return $labels;
+}
+
+/**
+ * Helper function to round a number before we import it to mongodb.
+ *
+ * @return number
+ */
+function _ccis_round(&$value, $key) {
+  $fields = _ccis_get_fields_for_fieldtype('number_decimal');
+  $value = trim($value);
+  if (!empty($fields[$key]) && $value != 'NA') {
+    $value = round($value, $fields[$key]);
+  }
+}
+
+/**
+ * Helper function to fix a interger before we import it to mongodb.
+ *
+ * @return number
+ */
+function _ccis_fix_interger(&$value, $key) {
+  $fields = _ccis_get_fields_for_fieldtype('number_integer');
+  $value = trim($value);
+  if (!empty($fields[$key]) && $value != 'NA') {
+    $value = (int)$value;
+  }
+}
+
+/**
+ * Helper function to get all fields for the weather data which are certain fieldtype.
+ *
+ * @return array
+ *  The key is the header name of csv data and the value the scale number.
+ */
+function _ccis_get_fields_for_fieldtype($type) {
+  $values = &drupal_static(__FUNCTION__, array());
+  if (empty($values)) {
+    $field_infos = field_info_instances('node', 'weather_data');
+    foreach ($field_infos as $field_name => $info) {
+      $field = field_info_field($field_name);
+      $key = str_replace('field_', '', $field_name);
+      if ($field['type'] == 'number_decimal') {
+        $values['number_decimal'][$key] = $field['settings']['scale'];
+      }
+      elseif ($field['type'] == 'number_integer') {
+        $values['number_integer'][$key] = 1;
+      }
+    }
+  }
+  return !empty($values[$type]) ? $values[$type] : array();
+}
+
+/**
+ * Implements hook_css_alter().
+ */
+function ccis_css_alter(&$css) {
+  $file = 'misc/ui/jquery.ui.accordion.css';
+  if (isset($css[$file])) {
+    unset($css[$file]);
+  }
+}
+
+/**
+ * Implements hook_js_alter().
+ */
+function ccis_js_alter(&$javascript) {
+  $js_file = drupal_get_path('module', 'openlayers') . '/plugins/behaviors/openlayers_behavior_cluster.js';
+  if (!empty($javascript[$js_file])) {
+    $javascript[$js_file]['data'] = drupal_get_path('module', 'ccis') . '/js/openlayers_behavior_cluster.js';
+  }
+
+  $js_file = drupal_get_path('module', 'openlayers') . '/plugins/behaviors/openlayers_behavior_popup.js';
+  if (!empty($javascript[$js_file])) {
+    $javascript[$js_file]['data'] = drupal_get_path('module', 'ccis') . '/js/openlayers_behavior_popup.js';
+  }
+
+  $js_file = drupal_get_path('module', 'openlayers_plus') . '/behaviors/openlayers_plus_behavior_blocktoggle.js';
+  if (!empty($javascript[$js_file])) {
+    $javascript[$js_file]['data'] = drupal_get_path('module', 'ccis') . '/js/openlayers_plus_behavior_blocktoggle.js';
+  }
+
+  $js_file = drupal_get_path('module', 'openlayers_plus') . '/behaviors/openlayers_plus_behavior_legend.js';
+  if (!empty($javascript[$js_file])) {
+    $javascript[$js_file]['data'] = drupal_get_path('module', 'ccis') . '/js/openlayers_plus_behavior_legend.js';
+  }
+}
+
+/**
+ * Returns a table for the finder list in filter form.
+ *
+ * @param string $string
+ *   Search term
+ *
+ */
+function ccis_search_terms_finder_list($values) {
+  $string = $values['searchterm'];
+  $region = $values['region'];
+  if (empty($string) && empty($region)) {
+    return '';
+  }
+  $search_fields = array_filter(variable_get('ccis_station_search_terms', array()));
+  $search_fields = array_keys($search_fields);
+  if (empty($search_fields)) {
+    return '';
+  }
+  $query = db_select('node', 'n');
+  $query->leftJoin('field_data_field_wmocode', 'f', 'n.nid = f.entity_id');
+  $query->leftJoin('field_data_field_stationcode', 'sc', 'n.nid = sc.entity_id');
+  if (!empty($region)) {
+    $query->leftJoin('field_data_field_stationprovince', 'region', 'n.nid = region.entity_id');
+    $query->condition('region.field_stationprovince_value', $region);
+  }
+  $query->fields('n', array('nid', 'title'));
+  $query->fields('f', array('field_wmocode_value'));
+  $query->fields('sc', array('field_stationcode_value'));
+  $db_or = db_or();
+  foreach ($search_fields as $index => $search_field) {
+    $query->leftJoin('field_data_' . $search_field, 'f' . $index, 'n.nid = f' . $index . '.entity_id');
+    $f_and = db_and()->condition("f$index.{$search_field}_value", db_like($string) . '%', 'LIKE');
+    $db_or = $db_or->condition($f_and);
+  }
+  $query->condition('n.type', 'weather_station')
+  ->condition($db_or)
+  ->addTag('node_access');
+  $header = array();
+  $header_labels = array(t('Station name'), t('WMO Code'), 1, 2);
+  foreach ($header_labels as $i => $label) {
+    $header[$i] = array(
+      'data' => $label,
+    );
+    if (is_int($label)) {
+      $header[$i]['class'] = 'col col-' . $i;
+    }
+  }
+  $rows = array();
+  try{
+    $results = $query->execute();
+    $options = array();
+    foreach ($results as $result) {
+      $input =  $result->title . ' (' . $result->field_stationcode_value . ')';
+      $checkbox1 = array(
+        '#type' => 'radio',
+        '#name' => 'station[1]',
+        '#attributes' => array('data-station' => 1, 'data-station-input' => $input),
+      );
+      $checkbox2 = array(
+        '#type' => 'radio',
+        '#name' => 'station[2]',
+        '#attributes' => array('data-station' => 2, 'data-station-input' => $input),
+      );
+      $rows[] = array(
+          $result->title,
+          $result->field_wmocode_value,
+          array('data' => drupal_render($checkbox1)),
+          array('data' => drupal_render($checkbox2)),
+      );
+    }
+  }
+  catch (Exception $e) {
+    watchdog_exception('ccis', $e);
+  }
+  $max = 10;
+  $pager = '';
+  if (count($rows) > $max) {
+    $pager = '<div id="ccis-station-search-result-pager"><a class="prev" href="#">' . t('Prev') . '</a> | <a class="next" href="#">' . t('Next') . '</a></div>';
+  }
+  $vars = array('header' => $header, 'rows' => $rows, 'empty' => t('Did not found a station'));
+  return theme('table', $vars) . $pager;
+}
+
+/**
+ * Returns a array of stored regions of the weather stations.
+ *
+ * @return array
+ */
+function _ccis_get_station_regions() {
+  $query = db_select('node', 'n');
+  $query->join('field_data_field_stationprovince', 'f', 'n.nid = f.entity_id');
+  $query->fields('f', array('field_stationprovince_value'));
+  $query->condition('n.status', NODE_PUBLISHED);
+  $query->addTag('node_access');
+  try{
+    $results = $query->execute()->fetchCol();
+  }
+  catch (Exception $e) {
+    $results = array();
+    watchdog_exception('ccis', $e);
+  }
+  $options = array();
+  foreach ($results as $result) {
+    $options[$result] = $result;
+  }
+  return $options;
+}
+
+/**
+ * Returns the translated label of a range.
+ *
+ * @param string $range
+ *   The range yearly|monthly|daily|10_days.
+ *
+ * @return string
+ *    The translated range label.
+ */
+function _ccis_get_range_label($range = NULL) {
+  $ranges = array(
+    'yearly' => t('Yearly'),
+    'monthly' => t('Monthly'),
+    'daily' => t('Daily'),
+    '10_days' => t('10 Days'),
+  );
+  return (isset($ranges[$range])) ? $ranges[$range] : (!is_null($range) ? $ranges : t('Unknown'));
+}

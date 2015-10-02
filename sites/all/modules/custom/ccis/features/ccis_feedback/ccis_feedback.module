@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the CCIS Feedback feature.
+ */
+
+include_once 'ccis_feedback.features.inc';
