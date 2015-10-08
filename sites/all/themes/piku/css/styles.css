@@ -195,7 +195,7 @@ body {
   background-color: #e6e6e6;
   position: relative;
   z-index: 2;
-  background-image: url('../img/header-new.png'); /* Yoshi */
+  background-image: url('../img/header.png'); /* Yoshi */
   background-repeat: no-repeat;
   min-height: 150px; /*Yoshi*/
  }
