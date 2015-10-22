@@ -5,5 +5,5 @@
 # sites/*/files
 # sites/*/private
 
-FirePHPCore
-php_errors.log
+#FirePHPCore
+#php_errors.log
