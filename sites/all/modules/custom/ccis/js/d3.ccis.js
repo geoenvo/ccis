@@ -419,8 +419,9 @@ Drupal.ccis.behaviors.d3 = {
 
 				var lr = linearRegression(trendArrayY, trendArrayX);
 				// We get: lr.slope - lr.intercept - lr.r2
-				
 				var max = d3.max(trendArrayX);
+				var trendLineVar = getEquation(0, lr.intercept, max, (max * lr.slope) + lr.intercept);
+				console.log(trendLineVar[0]+"x + "+trendLineVar[1]+"y = "+-1*trendLineVar[2]);
 				var myLine = d3.select("#svg"+block).append("svg:line")
 					.attr("x1", 0)
 					.attr("y1", lr.intercept)
@@ -432,6 +433,35 @@ Drupal.ccis.behaviors.d3 = {
 					.attr("transform", "translate(" + (margin.left-((margin.left_single*axis_sum)-(margin.left_single*axis_selection))) + "," + margin.top + ")");			
 			}	
 			// Trendline - END
+		}
+		function getEquation(x1,y1,x2,y2){
+			var a,b,c;
+			a = y1-y2;
+			b = x2-x1;
+			c = (x1-x2)*y1 + (y2-y1)*x1;
+			return equationSimplify(Array(a,b,c));
+		}
+
+		function equationSimplify(arrCoef){
+			var indexMin = indexMinCoef(arrCoef);
+			var divider = arrCoef[indexMin];
+			for(i = 0; i < arrCoef.length; i++){
+				arrCoef[i] = arrCoef[i]/divider;
+				arrCoef[i] = arrCoef[i].toFixed(2);
+			}	
+			return arrCoef;
+		}
+
+		function indexMinCoef(arrCoef){
+			var min = Math.abs(arrCoef[0]);
+			var indexMin = 0;
+			for(i = 1; i < arrCoef.length; i++){
+				if(min > Math.abs(arrCoef[i])){
+					min = Math.abs(arrCoef[i]);
+					indexMin = i;
+				}
+			}
+			return indexMin;
 		}
 
 		function drawGraphs() {
