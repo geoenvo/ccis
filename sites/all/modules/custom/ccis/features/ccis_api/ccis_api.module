@@ -34,12 +34,30 @@ function ccis_api_custom_callback ($query) {
 		$item = explode('=', $item);
 		$queries[$item[0]] = $item[1];
 	} 
+
 	$db_query = db_select('field_data_field_stationcode', 'station');
 	$db_query->condition('entity_id', $queries['nid']);
 	$db_query->fields('station', array('field_stationcode_value'));
+	
+	$range = 'yearly';
+	if(!is_null($queries['range']))
+		$range = $queries['range'];
+
+	$start = $queries['start'];
+	$end = $queries['end'];
+
 	$result = $db_query->execute()->fetch();
-	$list = $result->field_stationcode_value.'_yearly';
-	$cursor = mongodb_collection($list)->find();
+	$list = $result->field_stationcode_value.'_'.$range;
+	
+	if (!is_null($start) && !is_null($end))
+		$cursor = mongodb_collection($list)->find(array('date'=>array('$gt'=>$start, '$lt'=>$end)));
+	else if (!is_null($start))
+		$cursor = mongodb_collection($list)->find(array('date'=>array('$gt'=>$start)));
+	else if (!is_null($end))
+		$cursor = mongodb_collection($list)->find(array('date'=>array('$lt'=>$end)));
+	else 
+		$cursor = mongodb_collection($list)->find();
+	
 	$arr_data = array();
 	foreach ($cursor as $item) {
 		array_push($arr_data, $item);
