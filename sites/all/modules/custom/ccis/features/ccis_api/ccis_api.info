@@ -1,0 +1,6 @@
+name = API Dashboard Data
+description = My custom API Dashboard
+package = Other
+core = 7.x
+dependencies[] = services
+dependencies[] = rest_server

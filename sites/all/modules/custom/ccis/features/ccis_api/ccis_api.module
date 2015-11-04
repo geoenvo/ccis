@@ -1,0 +1,48 @@
+<?php
+
+/**
+ * Implements hook_ctools_plugin_api().
+ */
+function ccis_api_ctools_plugin_api($owner, $api) {
+  if ($owner == 'services' && $api == 'services') {
+    return array(
+      'version' => 3,
+      'file' => 'ccis_api.services.inc'
+    );
+  }
+}
+/**
+ * Implements hook_menu().
+ */
+function ccis_api_menu() {
+  $items = array();
+  $items['api/%'] = array( // change 'foo/myurl' to the url you want
+    'title' => 'Callback',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'ccis_api_custom_callback',
+    'page arguments' => array(1),
+    'access arguments' => array('access content'),
+  );
+  return $items;
+}
+
+function ccis_api_custom_callback ($query) {
+  // Parse $_REQUEST parameters
+	$arr_query = explode('&', $query);
+	$queries = array();
+	foreach($arr_query as $item){
+		$item = explode('=', $item);
+		$queries[$item[0]] = $item[1];
+	} 
+	$db_query = db_select('field_data_field_stationcode', 'station');
+	$db_query->condition('entity_id', $queries['nid']);
+	$db_query->fields('station', array('field_stationcode_value'));
+	$result = $db_query->execute()->fetch();
+	$list = $result->field_stationcode_value.'_yearly';
+	$cursor = mongodb_collection($list)->find();
+	$arr_data = array();
+	foreach ($cursor as $item) {
+		array_push($arr_data, $item);
+	}
+  return drupal_json_output($arr_data);
+}
