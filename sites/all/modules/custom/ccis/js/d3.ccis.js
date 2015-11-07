@@ -319,9 +319,11 @@ Drupal.ccis.behaviors.d3 = {
 				.attr("height", height + margin.top + margin.bottom)
 				.append("g")
 				.attr("transform", "translate(" + (margin.left-((margin.left_single*axis_sum)-(margin.left_single*axis_selection))) + "," + margin.top + ")");
+
 		}
 		createSvg();
-  
+  		
+
 		// Create graphs
 		function graphDraw(graphType, yScale, color, lineORbar, order) {
 			var yScaleType;
@@ -834,6 +836,8 @@ Drupal.ccis.behaviors.d3 = {
 			$(this).css("cursor","pointer").css("background-color", "#9E9E9E");
 		}, function () {$(this).css("cursor","default").css("background-color", "#b3b3b3");});
 		$("#d3_printPreviewId"+block).click(function() {
+			//window.print();
+
 			printPreview();
 		});
 
@@ -1098,18 +1102,21 @@ Drupal.ccis.behaviors.d3 = {
 		var newWindow=window.open("","","");
 			
 			$(newWindow).ready(function() {
-		
+
 				// Clone Diagram
 				var clone = $("#d3_GraphDiv"+block).clone();
 				// Remove background color and border
 				clone[0].firstChild.setAttribute("style", "background-color: ; outline: ;");
-				
+								
+
 				// Get html
 				var html = clone.html();
-
 				// Get the name of the Station
 				var stationName = stations[0].name;
 				
+				var table = $("#homebox-block-ccis_datatables-3").clone();
+				//console.log(table.html());
+				table.find(".dataTables_scrollBody").css('height', 'auto');
 				var printKeys = "";
 				for (var i=0; i<groupArray.length; i++) {
 					for (var k=0; k<groupShown[groupArray[i][1]].length; k++) {
@@ -1120,11 +1127,15 @@ Drupal.ccis.behaviors.d3 = {
 				// Add the content
 				newWindow.document.open();						
 				newWindow.document.write("<html><head><title>Dashboard | CCIS - Print Diagram</title>");
-				newWindow.document.write("<link rel='stylesheet' href='"+settings.basePath+"sites/all/modules/custom/ccis/css/d3.css' type='text/css' />");
+				//newWindow.document.write("<link rel='stylesheet' href='"+settings.basePath+"sites/all/libraries/datatables/media/css/demo_table.css' type='text/css' />");
+				//newWindow.document.write("<link rel='stylesheet' href='"+settings.basePath+"sites/all/modules/custom/ccis/css/d3.css' type='text/css' />");
+				//newWindow.print();
 				newWindow.document.write("</head><body>");
 				newWindow.document.write("<div class='d3_printDiv'><span class='d3_printTitle'>Station: "+stationName+"</span><br/><span class='d3_printDiagDiv''>"+html+"</span>"+printKeys+"</div>");
+				newWindow.document.write(table.html());
 				newWindow.document.write("</body></html>");
 				newWindow.document.close();
+				//console.log(newWindow.document);
 				newWindow.print();
 				newWindow.close();
 

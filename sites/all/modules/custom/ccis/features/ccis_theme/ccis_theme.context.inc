@@ -38,6 +38,12 @@ function ccis_theme_context_default_contexts() {
           'region' => 'utilities',
           'weight' => '-20',
         ),
+        'boxes-header_label' => array(
+          'module' => 'boxes',
+          'delta' => 'header_label',
+          'region' => 'utilities',
+          'weight' => '-18',
+        ),
         'search-form' => array(
           'module' => 'search',
           'delta' => 'form',
@@ -84,12 +90,12 @@ function ccis_theme_context_default_contexts() {
     ),
   );
   $context->condition_mode = 0;
-
   // Translatables
   // Included for use with string extractors like potx.
   t('CCIS');
   t('organizes information in header and footer blocks');
   $export['global_elements'] = $context;
+  
 
   return $export;
 }
