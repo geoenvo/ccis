@@ -323,7 +323,7 @@ Drupal.ccis.behaviors.d3 = {
 		createSvg();
   
 		// Create graphs
-		function graphDraw(graphType, yScale, color, lineORbar) {
+		function graphDraw(graphType, yScale, color, lineORbar, order) {
 			var yScaleType;
 			for (var i=0; i<unitsArray.length; i++) {
 				switch (yScale){
@@ -415,13 +415,16 @@ Drupal.ccis.behaviors.d3 = {
 
 						return lr;
 
-				};
+				};				
+
 
 				var lr = linearRegression(trendArrayY, trendArrayX);
 				// We get: lr.slope - lr.intercept - lr.r2
 				var max = d3.max(trendArrayX);
-				var trendLineVar = getEquation(0, lr.intercept, max, (max * lr.slope) + lr.intercept);
-				console.log(trendLineVar[0]+"x + "+trendLineVar[1]+"y = "+-1*trendLineVar[2]);
+				//var trendLineVar = getEquation(0, lr.intercept, max, (max * lr.slope) + lr.intercept);
+				var equation = getEquation(0, lr.intercept, max, (max * lr.slope) + lr.intercept);
+				drawEquation(color, equation, order);
+
 				var myLine = d3.select("#svg"+block).append("svg:line")
 					.attr("x1", 0)
 					.attr("y1", lr.intercept)
@@ -434,20 +437,52 @@ Drupal.ccis.behaviors.d3 = {
 			}	
 			// Trendline - END
 		}
+		function drawEquation(color, equation, order){
+			var circleData = [
+				 { "cx": 20, "cy": 20, "radius": 20, "color" : "green" },
+				 { "cx": 70, "cy": 70, "radius": 20, "color" : "purple" }];
+				 
+				var svgContainer = d3.select("#svg"+block).append("svg")
+                                     .attr("width",600)
+                                     .attr("height",200)
+                                     .attr("top",0)
+                                     .attr("right", 0);
+
+
+					
+				//Add the SVG Text Element to the svgContainer
+				var text = svgContainer.selectAll("text")
+				                        .data(circleData)
+				                        .enter()
+				                        .append("text");
+			console.log(order);
+			var textLabels = text
+                 .attr("x", 400)
+                 .attr("y", 15*(order+1))
+                 .text(function(){return equation})
+                 .attr("font-family", "sans-serif")
+                 .attr("font-size", "11px")
+                 .attr("fill", color);
+		}
 		function getEquation(x1,y1,x2,y2){
 			var a,b,c;
-			a = y1-y2;
+			a = y2-y1;
 			b = x2-x1;
-			c = (x1-x2)*y1 + (y2-y1)*x1;
-			return equationSimplify(Array(a,b,c));
+			c = (x2-x1)*y1 - (y2-y1)*x1;
+			var arrCoef = equationSimplify(Array(a,b,c));
+			var equation;
+			if(arrCoef[2] < 0)
+				equation = "y = " + -arrCoef[0] + "x " + arrCoef[2]
+			else 
+				equation = "y = " + -arrCoef[0] + "x +" + arrCoef[2]
+			return equation;
 		}
 
 		function equationSimplify(arrCoef){
-			var indexMin = indexMinCoef(arrCoef);
-			var divider = arrCoef[indexMin];
+			var divider = arrCoef[1];
 			for(i = 0; i < arrCoef.length; i++){
 				arrCoef[i] = arrCoef[i]/divider;
-				arrCoef[i] = arrCoef[i].toFixed(2);
+				arrCoef[i] = arrCoef[i].toFixed(3);
 			}	
 			return arrCoef;
 		}
@@ -465,9 +500,11 @@ Drupal.ccis.behaviors.d3 = {
 		}
 
 		function drawGraphs() {
+			var count = 0;
 			for (var i=0; i<groupArray.length; i++) {
 				for (var k=0; k<groupShown[groupArray[i][1]].length; k++) {
-					graphDraw(groupShown[groupArray[i][1]][k][0], groupShown[groupArray[i][1]][k][5], groupShown[groupArray[i][1]][k][1], groupShown[groupArray[i][1]][k][4]);
+					console.log("i:"+i+"; k:"+k);
+					graphDraw(groupShown[groupArray[i][1]][k][0], groupShown[groupArray[i][1]][k][5], groupShown[groupArray[i][1]][k][1], groupShown[groupArray[i][1]][k][4], count++);
 				}
 			}	
 		}
@@ -1216,8 +1253,9 @@ Drupal.ccis.behaviors.d3 = {
 		}
 		createSvg();
   
+
 		// Create graphs
-		function graphDraw(graphType, yScale, color, lineORbar) {
+		function graphDraw(graphType, yScale, color, lineORbar, order) {
 			var yScaleType;
 			for (var i=0; i<unitsArray.length; i++) {
 				switch (yScale){
@@ -1313,7 +1351,6 @@ Drupal.ccis.behaviors.d3 = {
 
 				var lr = linearRegression(trendArrayY, trendArrayX);
 				// We get: lr.slope - lr.intercept - lr.r2
-				
 				var max = d3.max(trendArrayX);
 				var myLine = d3.select("#svg"+block).append("svg:line")
 					.attr("x1", 0)
@@ -1327,11 +1364,11 @@ Drupal.ccis.behaviors.d3 = {
 			}	
 			// Trendline - END
 		}
-
+		
 		function drawGraphs() {
 			for (var i=0; i<groupArray.length; i++) {
 				for (var k=0; k<groupShown[groupArray[i][1]].length; k++) {
-					graphDraw(groupShown[groupArray[i][1]][k][0], groupShown[groupArray[i][1]][k][5], groupShown[groupArray[i][1]][k][1], groupShown[groupArray[i][1]][k][4]);
+					graphDraw(groupShown[groupArray[i][1]][k][0], groupShown[groupArray[i][1]][k][5], groupShown[groupArray[i][1]][k][1], groupShown[groupArray[i][1]][k][4], k);
 				}
 			}	
 		}
