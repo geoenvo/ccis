@@ -56,6 +56,12 @@ function cli_sample_positioning_context_default_contexts() {
           'region' => 'content',
           'weight' => '-7',
         ),
+        'twitter_block-1' => array(
+          'module' => 'twitter_block',
+          'delta' => '1',
+          'region' => 'content',
+          'weight' => '-6',
+        ),
         'views-blogpage-block' => array(
           'module' => 'views',
           'delta' => 'blogpage-block',
