@@ -1895,3 +1895,7 @@ tr.odd td.sorting_1 {
 
 /* piku specific */
 .tabular td { vertical-align: top; }
+
+#block-boxes-header-label{
+  position: absolute; top: 20px; font-size: 26px; left: 96px;
+}
