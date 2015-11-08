@@ -21,6 +21,5 @@ function ccis_image_teaser_custom_formatters_defaults() {
   $formatter->code = '<a href="[bean:field_internal_link_url]">[bean:field_teaser_image:large:render]</a>';
   $formatter->fapi = '';
   $export['image_teaser'] = $formatter;
-
   return $export;
 }

@@ -14,6 +14,7 @@
     <h2<?php print $title_attributes; ?>><span><?php print $title; ?></span></h2>
   <?php endif; ?>
   <?php print render($title_suffix); ?>
+  <?php //var_dump($title)?>
   <?php print $content; ?>
  </div>
 </div>
