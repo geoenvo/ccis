@@ -2,7 +2,6 @@
 (function($) {
 
 Drupal.ccis = Drupal.ccis || {'behaviors': {}};
-
 Drupal.behaviors.ccis_base = {
   attach: function(context, settings) {
     this.fetchStationData(settings);
@@ -61,6 +60,8 @@ Drupal.behaviors.ccis_base = {
       var data_found = false;
       $body.data('dashboardrefresh', 0);
       $.each(settings.ccis.stations, function(index, station) {
+        station.path = station.path.replace("ccis2", "ccis");
+        console.log(station.path);
         station.data = [];
         $.ajax({
           dataType: "json",
