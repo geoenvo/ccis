@@ -60,12 +60,12 @@ Drupal.behaviors.ccis_base = {
       var data_found = false;
       $body.data('dashboardrefresh', 0);
       $.each(settings.ccis.stations, function(index, station) {
-        station.path = station.path.replace("ccis2", "ccis");
+        sPath = station.path.replace("ccis2", "ccis");
         console.log(station.path);
         station.data = [];
         $.ajax({
           dataType: "json",
-          url: station.path,
+          url: sPath,
           type: 'GET',
           async: false,
           success: function(json, status) {
